@@ -3,6 +3,11 @@
 [English](#english) | [繁體中文](#繁體中文)
 
 ---
+![CI](https://github.com/gowerlin/claude-code-task-manager/actions/workflows/release.yml/badge.svg)
+![GitHub release](https://img.shields.io/github/v/release/gowerlin/claude-code-task-manager)
+![License](https://img.shields.io/github/license/gowerlin/claude-code-task-manager)
+
+---
 
 ## English
 
