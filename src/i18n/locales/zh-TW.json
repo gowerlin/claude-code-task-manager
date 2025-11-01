@@ -12,7 +12,9 @@
     "pending": "待處理",
     "in_progress": "進行中",
     "completed": "已完成",
-    "cancelled": "已取消"
+    "cancelled": "已取消",
+    "running": "執行中",
+    "failed": "失敗"
   },
   "priority": {
     "low": "低",
@@ -30,7 +32,9 @@
     "createdAt": "建立時間",
     "updatedAt": "更新時間",
     "completedAt": "完成時間",
-    "sessionId": "工作階段編號"
+    "sessionId": "工作階段編號",
+    "command": "指令",
+    "processId": "程序編號"
   },
   "actions": {
     "create": "建立任務",
@@ -39,6 +43,13 @@
     "complete": "完成任務",
     "list": "列出任務",
     "show": "顯示任務"
+  },
+  "background": {
+    "listTitle": "背景程序",
+    "listEmpty": "沒有背景程序",
+    "started": "背景程序已啟動",
+    "killed": "背景程序已終止",
+    "notFound": "找不到背景程序"
   },
   "errors": {
     "invalidInput": "提供的輸入無效",

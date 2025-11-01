@@ -218,6 +218,111 @@ async function main() {
       }
     });
 
+  // Background process management commands (similar to /bashes)
+  program
+    .command('bashes')
+    .alias('background')
+    .description('List and manage background processes')
+    .option('--running', 'Show only running processes')
+    .action(async (options) => {
+      try {
+        const bgProcessManager = taskManager.getBackgroundProcessManager();
+        const filter = options.running ? { status: 'running' as const } : undefined;
+        const processes = bgProcessManager.listProcesses(filter);
+
+        if (processes.length === 0) {
+          console.log(chalk.yellow('No background processes found'));
+          return;
+        }
+
+        console.log(chalk.bold('Background Processes'));
+        console.log();
+
+        processes.forEach(proc => {
+          const statusColor = proc.status === 'running' ? chalk.blue :
+                             proc.status === 'completed' ? chalk.green :
+                             chalk.red;
+
+          console.log(chalk.bold(`[${proc.id.substring(0, 8)}]`) + ` PID: ${proc.processId}`);
+          console.log(`  Status: ${statusColor(proc.status)}`);
+          console.log(`  Command: ${proc.command}`);
+          console.log(`  Started: ${proc.startedAt.toLocaleString()}`);
+          if (proc.exitCode !== undefined) {
+            console.log(`  Exit Code: ${proc.exitCode}`);
+          }
+          console.log();
+        });
+
+        const stats = bgProcessManager.getStatistics();
+        console.log(chalk.blue(`Total: ${stats.total} | Running: ${stats.running} | Completed: ${stats.completed} | Failed: ${stats.failed}`));
+      } catch (error) {
+        console.error(chalk.red(t('errors.unknownError')), error);
+      }
+    });
+
+  program
+    .command('bg-create')
+    .description('Create and start a background process task')
+    .argument('<title>', 'Task title')
+    .argument('<command>', 'Command to run in background')
+    .option('-d, --description <description>', 'Task description')
+    .option('-p, --priority <priority>', 'Priority level', 'medium')
+    .option('-t, --tags <tags>', 'Tags (comma-separated)', (val) => val.split(','))
+    .action(async (title, command, options) => {
+      try {
+        const priority = options.priority as TaskPriority;
+        const task = await taskManager.createBackgroundTask(
+          title,
+          command,
+          options.description,
+          priority,
+          options.tags
+        );
+        console.log(chalk.green('Background task created and started'));
+        console.log(chalk.blue(`Task ID: ${task.id}`));
+        console.log(`Title: ${task.title}`);
+        console.log(`Command: ${task.command}`);
+        console.log(`PID: ${task.processId}`);
+        console.log(`Status: ${t(`status.${task.status}`)}`);
+      } catch (error) {
+        console.error(chalk.red(t('errors.unknownError')), error);
+      }
+    });
+
+  program
+    .command('bg-kill')
+    .description('Kill a background process')
+    .argument('<id>', 'Task ID or process ID')
+    .action(async (id) => {
+      try {
+        await taskManager.killBackgroundProcess(id);
+        console.log(chalk.green('Background process killed'));
+      } catch (error) {
+        console.error(chalk.red(t('errors.unknownError')), error);
+      }
+    });
+
+  program
+    .command('bg-logs')
+    .description('Show output/logs of a background process')
+    .argument('<id>', 'Process ID')
+    .action(async (id) => {
+      try {
+        const bgProcessManager = taskManager.getBackgroundProcessManager();
+        const output = bgProcessManager.getProcessOutput(id);
+        
+        if (!output) {
+          console.log(chalk.yellow('No output available or process not found'));
+          return;
+        }
+
+        console.log(chalk.bold('Process Output:'));
+        console.log(output);
+      } catch (error) {
+        console.error(chalk.red(t('errors.unknownError')), error);
+      }
+    });
+
   program.parse();
 }
 

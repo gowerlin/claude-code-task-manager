@@ -2,13 +2,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
-import { Task, TaskStatus, TaskPriority, TaskFilter, TaskManagerConfig } from '../types';
+import { Task, TaskStatus, TaskPriority, TaskFilter, TaskManagerConfig, TaskType } from '../types';
 import { t } from '../i18n';
+import { BackgroundProcessManager } from './BackgroundProcessManager';
 
 const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
-const exists = promisify(fs.exists);
 
 export class TaskManager {
   private tasks: Map<string, Task> = new Map();
@@ -16,12 +16,14 @@ export class TaskManager {
   private dataFile: string;
   private autoSave: boolean;
   private sessionId: string;
+  private backgroundProcessManager: BackgroundProcessManager;
 
   constructor(config: TaskManagerConfig = {}) {
     this.dataDir = config.dataDir || path.join(process.env.HOME || process.env.USERPROFILE || '.', '.claude-task-manager');
     this.dataFile = path.join(this.dataDir, 'tasks.json');
     this.autoSave = config.autoSave !== undefined ? config.autoSave : true;
     this.sessionId = uuidv4();
+    this.backgroundProcessManager = new BackgroundProcessManager();
   }
 
   async init(): Promise<void> {
@@ -66,7 +68,8 @@ export class TaskManager {
     title: string,
     description?: string,
     priority: TaskPriority = TaskPriority.MEDIUM,
-    tags?: string[]
+    tags?: string[],
+    type: TaskType = TaskType.TASK
   ): Promise<Task> {
     const now = new Date();
     const task: Task = {
@@ -75,6 +78,7 @@ export class TaskManager {
       description,
       status: TaskStatus.PENDING,
       priority,
+      type,
       tags,
       createdAt: now,
       updatedAt: now,
@@ -89,6 +93,81 @@ export class TaskManager {
 
     return task;
   }
+
+  /**
+   * Create a background process task and start the process
+   * This integrates with /bashes concept from Claude Code
+   */
+  async createBackgroundTask(
+    title: string,
+    command: string,
+    description?: string,
+    priority: TaskPriority = TaskPriority.MEDIUM,
+    tags?: string[]
+  ): Promise<Task> {
+    const task = await this.createTask(title, description, priority, tags, TaskType.BACKGROUND_PROCESS);
+    
+    try {
+      const bgProcess = await this.backgroundProcessManager.startProcess(command, task.id);
+      
+      task.status = TaskStatus.RUNNING;
+      task.command = command;
+      task.processId = bgProcess.processId;
+      task.metadata = {
+        ...task.metadata,
+        backgroundProcessId: bgProcess.id
+      };
+
+      this.tasks.set(task.id, task);
+      
+      if (this.autoSave) {
+        await this.saveTasks();
+      }
+    } catch (error) {
+      task.status = TaskStatus.FAILED;
+      this.tasks.set(task.id, task);
+      throw error;
+    }
+
+    return task;
+  }
+
+  /**
+   * List all background processes (similar to /bashes command)
+   */
+  listBackgroundProcesses(): Task[] {
+    return this.listTasks({ type: TaskType.BACKGROUND_PROCESS });
+  }
+
+  /**
+   * Kill a background process
+   */
+  async killBackgroundProcess(taskId: string): Promise<void> {
+    const task = this.tasks.get(taskId);
+    if (!task || task.type !== TaskType.BACKGROUND_PROCESS) {
+      throw new Error(t('tasks.notFound'));
+    }
+
+    const bgProcessId = task.metadata?.backgroundProcessId;
+    if (bgProcessId) {
+      await this.backgroundProcessManager.killProcess(bgProcessId);
+      task.status = TaskStatus.CANCELLED;
+      task.updatedAt = new Date();
+      this.tasks.set(taskId, task);
+      
+      if (this.autoSave) {
+        await this.saveTasks();
+      }
+    }
+  }
+
+  /**
+   * Get background process manager for advanced operations
+   */
+  getBackgroundProcessManager(): BackgroundProcessManager {
+    return this.backgroundProcessManager;
+  }
+
 
   async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
     const task = this.tasks.get(id);
@@ -150,6 +229,9 @@ export class TaskManager {
       }
       if (filter.priority) {
         tasks = tasks.filter(task => task.priority === filter.priority);
+      }
+      if (filter.type) {
+        tasks = tasks.filter(task => task.type === filter.type);
       }
       if (filter.tags && filter.tags.length > 0) {
         tasks = tasks.filter(task =>

@@ -12,7 +12,9 @@
     "pending": "Pending",
     "in_progress": "In Progress",
     "completed": "Completed",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "running": "Running",
+    "failed": "Failed"
   },
   "priority": {
     "low": "Low",
@@ -30,7 +32,9 @@
     "createdAt": "Created At",
     "updatedAt": "Updated At",
     "completedAt": "Completed At",
-    "sessionId": "Session ID"
+    "sessionId": "Session ID",
+    "command": "Command",
+    "processId": "Process ID"
   },
   "actions": {
     "create": "Create Task",
@@ -39,6 +43,13 @@
     "complete": "Complete Task",
     "list": "List Tasks",
     "show": "Show Task"
+  },
+  "background": {
+    "listTitle": "Background Processes",
+    "listEmpty": "No background processes",
+    "started": "Background process started",
+    "killed": "Background process killed",
+    "notFound": "Background process not found"
   },
   "errors": {
     "invalidInput": "Invalid input provided",

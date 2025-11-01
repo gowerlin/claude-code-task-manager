@@ -17,6 +17,7 @@ A cross-session intelligent task management system designed for Claude Code and 
 - 🏷️ **Tag System**: Categorize tasks with custom tags
 - 📤 **Import/Export**: Backup and restore tasks easily
 - 🖥️ **CLI Interface**: Powerful command-line interface for task management
+- 🔧 **Background Process Management**: Integrated `/bashes`-like functionality for managing background processes (see [issue #7069](https://github.com/anthropics/claude-code/issues/7069))
 
 ### Installation
 
@@ -83,6 +84,44 @@ cctm export ./tasks-backup.json
 ```bash
 cctm import ./tasks-backup.json
 ```
+
+#### Background Process Management (inspired by `/bashes`)
+
+Based on [Claude Code issue #7069](https://github.com/anthropics/claude-code/issues/7069), this task manager includes integrated background process management similar to the `/bashes` command concept.
+
+**Create and start a background process task:**
+```bash
+cctm bg-create "Dev Server" "npm run dev" -d "Start development server" -p high
+```
+
+**List all background processes:**
+```bash
+cctm bashes
+# or
+cctm background
+```
+
+**List only running processes:**
+```bash
+cctm bashes --running
+```
+
+**Kill a background process:**
+```bash
+cctm bg-kill <task-id>
+```
+
+**View process output/logs:**
+```bash
+cctm bg-logs <process-id>
+```
+
+This feature addresses the need for native background task management in Claude Code, providing:
+- Task discovery and listing
+- Real-time status monitoring
+- Unified process control
+- Session persistence
+- Output/log viewing
 
 #### Language Support
 
@@ -197,6 +236,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - 🏷️ **標籤系統**：使用自訂標籤分類任務
 - 📤 **匯入/匯出**：輕鬆備份和還原任務
 - 🖥️ **命令列介面**：強大的命令列介面進行任務管理
+- 🔧 **背景程序管理**：整合類似 `/bashes` 的功能來管理背景程序（參見 [issue #7069](https://github.com/anthropics/claude-code/issues/7069)）
 
 ### 安裝
 
@@ -263,6 +303,44 @@ cctm export ./tasks-backup.json
 ```bash
 cctm import ./tasks-backup.json
 ```
+
+#### 背景程序管理（靈感來自 `/bashes`）
+
+基於 [Claude Code issue #7069](https://github.com/anthropics/claude-code/issues/7069)，此任務管理器包含類似 `/bashes` 命令概念的整合背景程序管理功能。
+
+**建立並啟動背景程序任務：**
+```bash
+cctm bg-create "開發伺服器" "npm run dev" -d "啟動開發伺服器" -p high
+```
+
+**列出所有背景程序：**
+```bash
+cctm bashes
+# 或
+cctm background
+```
+
+**僅列出執行中的程序：**
+```bash
+cctm bashes --running
+```
+
+**終止背景程序：**
+```bash
+cctm bg-kill <task-id>
+```
+
+**查看程序輸出/日誌：**
+```bash
+cctm bg-logs <process-id>
+```
+
+此功能滿足了 Claude Code 中原生背景任務管理的需求，提供：
+- 任務探索和列表
+- 即時狀態監控
+- 統一的程序控制
+- 工作階段持久化
+- 輸出/日誌查看
 
 #### 語言支援
 
