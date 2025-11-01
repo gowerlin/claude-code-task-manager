@@ -1,0 +1,32 @@
+{
+  "name": "claude-code-task-manager",
+  "version": "1.0.0",
+  "description": "A cross-session intelligent task management system designed for Claude Code and VSCode, enabling collaborative background task management with multi-language support.",
+  "author": "Gower",
+  "category": "productivity",
+  "keywords": [
+    "task-manager",
+    "productivity",
+    "background-processes",
+    "cli",
+    "cross-session",
+    "devtools",
+    "claude-code",
+    "vscode"
+  ],
+  "source": "https://github.com/gowerlin/claude-code-task-manager",
+  "commands": {
+    "task-create": "commands/task-create.md",
+    "task-list": "commands/task-list.md",
+    "task-show": "commands/task-show.md",
+    "task-update": "commands/task-update.md",
+    "task-complete": "commands/task-complete.md",
+    "task-delete": "commands/task-delete.md",
+    "task-export": "commands/task-export.md",
+    "task-import": "commands/task-import.md",
+    "bg-processes": "commands/bg-processes.md",
+    "bg-create": "commands/bg-create.md",
+    "bg-kill": "commands/bg-kill.md",
+    "bg-logs": "commands/bg-logs.md"
+  }
+}
