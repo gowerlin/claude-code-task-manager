@@ -1,0 +1,31 @@
+# Source files
+src/
+tsconfig.json
+
+# Build files
+*.tsbuildinfo
+
+# Development files
+.github/
+examples/
+.gitignore
+.npmignore
+
+# Documentation (keep README and LICENSE)
+CONTRIBUTING.md
+RELEASE_GUIDE.md
+
+# Lock files
+package-lock.json
+
+# Logs and temp files
+*.log
+.DS_Store
+.env
+.claude-task-manager/
+
+# Test files
+*.test.ts
+*.spec.ts
+__tests__/
+coverage/
