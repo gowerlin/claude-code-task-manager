@@ -1,6 +1,6 @@
 # Claude Code Task Manager
 
-[English](#english) | [繁體中文](#繁體中文)
+[English](#english) | [繁體中文](./README_ZH-TW.md)
 
 ---
 ![CI](https://github.com/gowerlin/claude-code-task-manager/actions/workflows/release.yml/badge.svg)
@@ -11,7 +11,7 @@
 
 ## English
 
-A cross-session intelligent task management system designed for Claude Code and VSCode, enabling collaborative background task management.
+> 🚀 A cross-session intelligent task management system designed for Claude Code and VSCode, enabling collaborative background task management.
 
 ### Features
 
@@ -25,6 +25,12 @@ A cross-session intelligent task management system designed for Claude Code and 
 - 🔧 **Background Process Management**: Integrated `/bashes`-like functionality for managing background processes (see [issue #7069](https://github.com/anthropics/claude-code/issues/7069))
 - 🔌 **Claude Code Plugin**: Available as a Claude Code CLI plugin for seamless integration
 - 📊 **JSON Output**: Support for structured JSON output for all commands
+- 🔀 **Intelligent Conflict Resolution**: Automatically stops conflicting tasks before starting new ones
+- 🔗 **Dependency Management**: Automatically starts dependent tasks when needed
+- 🎯 **Advanced Task Types**: Support for build, serve, watch, test, and custom task types
+- 📁 **Project Grouping**: Organize and filter tasks by project name
+- 🔍 **Process Discovery**: Find tasks by PID or command pattern
+- ⚡ **Batch Operations**: Perform operations on multiple tasks simultaneously
 
 ### Installation
 
@@ -60,9 +66,48 @@ The plugin provides enhanced command documentation and integration with Claude C
 
 #### Basic Commands
 
-**Create a task:**
+**Create a simple task:**
 ```bash
 cctm create "Implement authentication" -d "Add JWT-based authentication" -p high -t "backend,security"
+```
+
+**Add a task with advanced options (intelligent task management):**
+```bash
+cctm add dev-server "Development Server" "npm run dev" \
+  --type serve \
+  --project MyApp \
+  --priority high
+```
+
+**Add a task with conflict resolution:**
+```bash
+cctm add build "Build Project" "npm run build" \
+  --type build \
+  --conflicts dev-server \
+  --project MyApp
+```
+
+**Add a task with dependencies:**
+```bash
+cctm add api-tests "API Tests" "npm test" \
+  --deps api-server,database
+```
+
+**Start a task (with automatic conflict/dependency handling):**
+```bash
+cctm start <task-id>
+# Automatically stops conflicting tasks
+# Automatically starts dependency tasks
+```
+
+**Stop a task:**
+```bash
+cctm stop <task-id>
+```
+
+**Restart a task:**
+```bash
+cctm restart <task-id>
 ```
 
 **List all tasks:**
@@ -70,29 +115,66 @@ cctm create "Implement authentication" -d "Add JWT-based authentication" -p high
 cctm list
 ```
 
-**List tasks by status:**
+**List tasks with filters:**
 ```bash
-cctm list --status pending
+cctm list --status running
+cctm list --project MyApp
+cctm list --type serve
 ```
 
-**Show task details:**
+**Show detailed task information:**
 ```bash
-cctm show <task-id>
+cctm info <task-id>
+# Shows conflicts, dependencies, PID, log file, etc.
 ```
 
-**Update a task:**
+**View task logs:**
 ```bash
-cctm update <task-id> -s in_progress
+cctm log <task-id> --lines 100
 ```
 
-**Complete a task:**
+**Find tasks by PID:**
 ```bash
-cctm complete <task-id>
+cctm find-pid 12345
 ```
 
-**Delete a task:**
+**Find tasks by command pattern:**
 ```bash
-cctm delete <task-id>
+cctm find-cmd "npm"
+cctm find-cmd "dotnet.*run"  # Regex supported
+```
+
+**Batch operations:**
+```bash
+cctm batch start task1,task2,task3
+cctm batch stop task1,task2,task3
+cctm batch restart task1,task2,task3
+cctm batch remove task1,task2,task3
+```
+
+**Stop all tasks:**
+```bash
+cctm stop-all
+cctm stop-all --project MyApp
+cctm stop-all --type serve
+```
+
+**Cleanup completed/failed tasks:**
+```bash
+cctm cleanup
+```
+
+**Get intelligent suggestions:**
+```bash
+cctm suggest "npm run build"
+# Provides context-aware suggestions about conflicts
+```
+
+**Session management:**
+```bash
+cctm session-start
+cctm session-end
+cctm session
 ```
 
 **Show current session:**
@@ -257,6 +339,103 @@ Tasks are stored in JSON format at:
 - Linux/macOS: `~/.claude-task-manager/tasks.json`
 - Windows: `%USERPROFILE%\.claude-task-manager\tasks.json`
 
+Task logs are stored at:
+- Linux/macOS: `~/.claude-task-manager/logs/`
+- Windows: `%USERPROFILE%\.claude-task-manager\logs\`
+
+### Usage Examples
+
+#### Example 1: Full-Stack Development Workflow
+
+```bash
+# Register all services
+cctm add frontend "React Dev" "npm run dev" \
+  --cwd ./frontend --type serve --project MyApp
+
+cctm add backend "Express API" "npm run dev" \
+  --cwd ./backend --type serve --project MyApp --deps database
+
+cctm add database "PostgreSQL" "docker-compose up postgres" \
+  --type serve --project MyApp
+
+# Start all services at once
+cctm batch start frontend,backend,database
+
+# Backend automatically starts database due to dependency
+
+# Stop all project services
+cctm stop-all --project MyApp
+```
+
+#### Example 2: Conflict Resolution
+
+```bash
+# Add dev server
+cctm add dev-server "Dev Server" "npm run dev" \
+  --type serve --project MyApp
+
+# Add build task with conflict
+cctm add build "Production Build" "npm run build" \
+  --type build --conflicts dev-server --project MyApp
+
+# Start dev server
+cctm start dev-server
+
+# Start build - automatically stops dev-server
+cctm start build
+# Output: ■ Stopped task: dev-server
+#         ▶ Started task: build
+
+# Restart dev server after build completes
+cctm restart dev-server
+```
+
+#### Example 3: Microservices Architecture
+
+```bash
+# Register all microservices
+cctm add auth "Auth Service" "npm start" \
+  --cwd ./auth --type serve --project MicroApp
+
+cctm add user "User Service" "npm start" \
+  --cwd ./user --type serve --project MicroApp
+
+cctm add order "Order Service" "npm start" \
+  --cwd ./order --type serve --project MicroApp
+
+# API Gateway with all dependencies
+cctm add gateway "API Gateway" "npm start" \
+  --cwd ./gateway --type serve --project MicroApp \
+  --deps auth,user,order
+
+# Start gateway - automatically starts all dependencies
+cctm start gateway
+
+# View logs for a specific service
+cctm log user --lines 50
+
+# Restart a specific service
+cctm restart order
+```
+
+#### Example 4: Finding and Managing External Processes
+
+```bash
+# Find tasks by command pattern
+cctm find-cmd "node"
+# ✓ Found 3 task(s):
+#   [frontend] React Dev
+#     Command: npm run dev
+#     Status: running
+
+# Find task by PID
+cctm find-pid 12345
+
+# Add existing external process to management
+cctm add external-api "External API" "node server.js" \
+  --type serve
+```
+
 ### Development
 
 ```bash
@@ -331,6 +510,47 @@ npm install claude-code-task-manager
 
 該插件提供增強的命令文件和與 Claude Code 原生功能的整合。
 
+### 完整文件
+
+本專案已實現問題陳述中描述的所有功能，包括：
+
+- ✅ 跨 Session 持久化
+- ✅ 智能衝突處理
+- ✅ 依賴管理
+- ✅ 跨工具管理
+- ✅ 批次操作
+- ✅ 進程發現 (find-pid, find-cmd)
+- ✅ 任務類型 (build/serve/watch/test/custom)
+- ✅ 專案分組
+- ✅ 工作目錄設定
+- ✅ 日誌查看
+- ✅ 智能建議
+
+**完整的繁體中文文件請參考：[README_ZH-TW.md](./README_ZH-TW.md)**
+
+### 快速開始
+
+```bash
+# 安裝
+npm install -g claude-code-task-manager
+
+# 新增任務
+cctm add dev-server "開發伺服器" "npm run dev" \
+  --type serve --project MyApp
+
+# 啟動任務
+cctm start dev-server
+
+# 查看任務
+cctm list --project MyApp
+
+# 查看日誌
+cctm log dev-server
+
+# 停止任務
+cctm stop dev-server
+```
+
 ### 命令列使用
 
 #### 基本指令
@@ -340,6 +560,26 @@ npm install claude-code-task-manager
 cctm create "實作身份驗證" -d "新增基於 JWT 的身份驗證" -p high -t "後端,安全性"
 ```
 
+**新增進階任務（智能任務管理）：**
+```bash
+cctm add dev-server "開發伺服器" "npm run dev" \
+  --type serve \
+  --project MyApp \
+  --priority high
+```
+
+**新增具衝突解決的任務：**
+```bash
+cctm add build "建置專案" "npm run build" \
+  --type build \
+  --conflicts dev-server
+```
+
+**啟動任務（自動處理衝突和依賴）：**
+```bash
+cctm start <task-id>
+```
+
 **列出所有任務：**
 ```bash
 cctm list
@@ -347,27 +587,41 @@ cctm list
 
 **依狀態列出任務：**
 ```bash
-cctm list --status pending
+cctm list --status running
+cctm list --project MyApp
 ```
 
 **顯示任務詳情：**
 ```bash
-cctm show <task-id>
+cctm info <task-id>
 ```
 
-**更新任務：**
+**查看任務日誌：**
 ```bash
-cctm update <task-id> -s in_progress
+cctm log <task-id> --lines 100
 ```
 
-**完成任務：**
+**尋找任務：**
 ```bash
-cctm complete <task-id>
+cctm find-pid 12345
+cctm find-cmd "npm"
 ```
 
-**刪除任務：**
+**批次操作：**
 ```bash
-cctm delete <task-id>
+cctm batch start task1,task2,task3
+cctm batch stop task1,task2,task3
+```
+
+**停止所有任務：**
+```bash
+cctm stop-all
+cctm stop-all --project MyApp
+```
+
+**清理任務：**
+```bash
+cctm cleanup
 ```
 
 **顯示目前工作階段：**
