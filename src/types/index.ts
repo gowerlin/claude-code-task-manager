@@ -16,7 +16,12 @@ export enum TaskPriority {
 
 export enum TaskType {
   TASK = 'task',          // Regular task
-  BACKGROUND_PROCESS = 'background_process'  // Background bash process
+  BACKGROUND_PROCESS = 'background_process',  // Background bash process
+  BUILD = 'build',        // Build task
+  SERVE = 'serve',        // Server/service task
+  WATCH = 'watch',        // Watch/monitoring task
+  TEST = 'test',          // Test task
+  CUSTOM = 'custom'       // Custom task type
 }
 
 export interface Task {
@@ -36,6 +41,12 @@ export interface Task {
   processId?: number;
   command?: string;
   exitCode?: number;
+  // Enhanced fields for intelligent task management
+  cwd?: string;              // Working directory
+  project?: string;          // Project name
+  conflicts?: string[];      // IDs of conflicting tasks
+  dependencies?: string[];   // IDs of dependency tasks
+  logFile?: string;         // Path to log file
 }
 
 export interface TaskFilter {
@@ -44,6 +55,7 @@ export interface TaskFilter {
   type?: TaskType;
   tags?: string[];
   sessionId?: string;
+  project?: string;
 }
 
 export interface TaskManagerConfig {

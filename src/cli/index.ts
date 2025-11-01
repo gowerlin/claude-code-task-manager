@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { TaskManager } from '../core/TaskManager';
-import { TaskStatus, TaskPriority } from '../types';
+import { TaskStatus, TaskPriority, TaskType } from '../types';
 import { initI18n, t, changeLanguage } from '../i18n';
 
 const program = new Command();
@@ -93,6 +93,8 @@ async function main() {
     .description(t('actions.list'))
     .option('-s, --status <status>', t('fields.status'))
     .option('-p, --priority <priority>', t('fields.priority'))
+    .option('--project <name>', 'Filter by project')
+    .option('--type <type>', 'Filter by type')
     .option('--session', 'Show only current session tasks')
     .option('--json', 'Output in JSON format')
     .action(async (options, command) => {
@@ -100,6 +102,8 @@ async function main() {
         const filter: any = {};
         if (options.status) filter.status = options.status;
         if (options.priority) filter.priority = options.priority;
+        if (options.project) filter.project = options.project;
+        if (options.type) filter.type = options.type;
         if (options.session) filter.sessionId = taskManager.getSessionId();
 
         const tasks = taskManager.listTasks(filter);
@@ -404,6 +408,532 @@ async function main() {
       } catch (error) {
         console.error(chalk.red(t('errors.unknownError')), error);
       }
+    });
+
+  // Enhanced task management commands
+  program
+    .command('add')
+    .description('Add a new task with advanced options')
+    .argument('<id>', 'Task ID')
+    .argument('<description>', 'Task description')
+    .argument('<command>', 'Command to execute')
+    .option('--cwd <path>', 'Working directory')
+    .option('--type <type>', 'Task type (build/serve/watch/test/custom)', 'custom')
+    .option('--project <name>', 'Project name')
+    .option('--conflicts <ids>', 'Conflicting task IDs (comma-separated)')
+    .option('--deps <ids>', 'Dependency task IDs (comma-separated)')
+    .option('-p, --priority <priority>', 'Priority level', 'medium')
+    .option('-t, --tags <tags>', 'Tags (comma-separated)')
+    .option('--json', 'Output in JSON format')
+    .action(async (id, description, command, options, commandObj) => {
+      try {
+        const priority = options.priority as TaskPriority;
+        const type = options.type as TaskType;
+        const tags = options.tags ? options.tags.split(',') : undefined;
+        const conflicts = options.conflicts ? options.conflicts.split(',') : undefined;
+        const dependencies = options.deps ? options.deps.split(',') : undefined;
+
+        const task = await taskManager.createTask(
+          id,  // Use id as title
+          description,  // Description remains as is
+          priority,
+          tags,
+          type,
+          {
+            command,
+            cwd: options.cwd,
+            project: options.project,
+            conflicts,
+            dependencies
+          }
+        );
+
+        // Override the generated ID with the user-provided one
+        taskManager['tasks'].delete(task.id);
+        task.id = id;
+        taskManager['tasks'].set(id, task);
+        await taskManager['saveTasks']();
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              command: task.command,
+              status: task.status,
+              priority: task.priority,
+              type: task.type,
+              project: task.project,
+              conflicts: task.conflicts,
+              dependencies: task.dependencies
+            }
+          });
+        } else {
+          console.log(chalk.green('✓ Task added'));
+          console.log(chalk.blue(`  ID: ${task.id}`));
+          console.log(`  Description: ${task.description}`);
+          console.log(`  Command: ${task.command}`);
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('start')
+    .description('Start a task')
+    .argument('<id>', 'Task ID')
+    .option('--json', 'Output in JSON format')
+    .action(async (id, options, commandObj) => {
+      try {
+        const task = await taskManager.startTask(id);
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              status: task.status,
+              processId: task.processId
+            }
+          });
+        } else {
+          console.log(chalk.green(`▶ Started task: ${task.title}`));
+          if (task.processId) {
+            console.log(chalk.blue(`  PID: ${task.processId}`));
+          }
+          if (task.logFile) {
+            console.log(chalk.gray(`  Log: ${task.logFile}`));
+          }
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('stop')
+    .description('Stop a task')
+    .argument('<id>', 'Task ID')
+    .option('--json', 'Output in JSON format')
+    .action(async (id, options, commandObj) => {
+      try {
+        const task = await taskManager.stopTask(id);
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              status: task.status
+            }
+          });
+        } else {
+          console.log(chalk.green(`■ Stopped task: ${task.title}`));
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('restart')
+    .description('Restart a task')
+    .argument('<id>', 'Task ID')
+    .option('--json', 'Output in JSON format')
+    .action(async (id, options, commandObj) => {
+      try {
+        const task = await taskManager.restartTask(id);
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              status: task.status,
+              processId: task.processId
+            }
+          });
+        } else {
+          console.log(chalk.green(`⟳ Restarted task: ${task.title}`));
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('stop-all')
+    .description('Stop all running tasks')
+    .option('--project <name>', 'Filter by project')
+    .option('--type <type>', 'Filter by type')
+    .option('--json', 'Output in JSON format')
+    .action(async (options, commandObj) => {
+      try {
+        const filter: any = {};
+        if (options.project) filter.project = options.project;
+        if (options.type) filter.type = options.type;
+
+        const stopped = await taskManager.stopAllTasks(filter);
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: true,
+            stopped
+          });
+        } else {
+          console.log(chalk.green(`■ Stopped ${stopped} task(s)`));
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('cleanup')
+    .description('Remove completed and failed tasks')
+    .option('--json', 'Output in JSON format')
+    .action(async (options, commandObj) => {
+      try {
+        const cleaned = await taskManager.cleanupTasks();
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: true,
+            cleaned
+          });
+        } else {
+          console.log(chalk.green(`✓ Cleaned up ${cleaned} task(s)`));
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('find-pid')
+    .description('Find task by process ID')
+    .argument('<pid>', 'Process ID')
+    .option('--json', 'Output in JSON format')
+    .action(async (pidStr, options, commandObj) => {
+      try {
+        const pid = parseInt(pidStr, 10);
+        const task = taskManager.findTaskByPid(pid);
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: !!task,
+            task: task ? {
+              id: task.id,
+              title: task.title,
+              command: task.command,
+              status: task.status,
+              processId: task.processId
+            } : null
+          });
+        } else {
+          if (task) {
+            console.log(chalk.green(`✓ Found task: ${task.title}`));
+            console.log(`  ID: ${task.id}`);
+            console.log(`  Command: ${task.command}`);
+            console.log(`  Status: ${task.status}`);
+          } else {
+            console.log(chalk.yellow('No task found with that PID'));
+          }
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('find-cmd')
+    .description('Find tasks by command pattern')
+    .argument('<pattern>', 'Command pattern (regex supported)')
+    .option('--json', 'Output in JSON format')
+    .action(async (pattern, options, commandObj) => {
+      try {
+        const tasks = taskManager.findTasksByCommand(pattern);
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: true,
+            tasks: tasks.map(task => ({
+              id: task.id,
+              title: task.title,
+              command: task.command,
+              status: task.status,
+              processId: task.processId
+            })),
+            count: tasks.length
+          });
+        } else {
+          if (tasks.length === 0) {
+            console.log(chalk.yellow('No tasks found matching that pattern'));
+          } else {
+            console.log(chalk.green(`✓ Found ${tasks.length} task(s):`));
+            tasks.forEach(task => {
+              console.log(`  [${task.id.substring(0, 8)}] ${task.title}`);
+              console.log(`    Command: ${task.command}`);
+              console.log(`    Status: ${task.status}`);
+            });
+          }
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('batch')
+    .description('Batch operations on multiple tasks')
+    .argument('<action>', 'Action: start, stop, restart, remove')
+    .argument('<ids>', 'Task IDs (comma-separated)')
+    .option('--json', 'Output in JSON format')
+    .action(async (action, idsStr, options, commandObj) => {
+      try {
+        const ids = idsStr.split(',').map((id: string) => id.trim());
+        let result;
+
+        switch (action) {
+          case 'start':
+            result = await taskManager.batchStart(ids);
+            break;
+          case 'stop':
+            result = await taskManager.batchStop(ids);
+            break;
+          case 'restart':
+            result = await taskManager.batchRestart(ids);
+            break;
+          case 'remove':
+            result = await taskManager.batchRemove(ids);
+            break;
+          default:
+            throw new Error(`Unknown action: ${action}`);
+        }
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: true,
+            action,
+            result
+          });
+        } else {
+          console.log(chalk.green(`✓ Batch ${action} completed`));
+          console.log(`  Succeeded: ${result.succeeded.length}`);
+          console.log(`  Failed: ${result.failed.length}`);
+          if (result.failed.length > 0) {
+            console.log(chalk.yellow(`  Failed IDs: ${result.failed.join(', ')}`));
+          }
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('log')
+    .description('View task logs')
+    .argument('<id>', 'Task ID')
+    .option('--lines <number>', 'Number of lines to show', '50')
+    .action(async (id, options) => {
+      try {
+        const lines = parseInt(options.lines, 10);
+        const logs = await taskManager.getTaskLogs(id, lines);
+        console.log(logs);
+      } catch (error) {
+        console.error(chalk.red('✗ Error:'), error);
+      }
+    });
+
+  program
+    .command('info')
+    .description('Show detailed task information')
+    .argument('<id>', 'Task ID')
+    .option('--json', 'Output in JSON format')
+    .action(async (id, options, commandObj) => {
+      try {
+        const task = taskManager.getTask(id);
+
+        if (!task) {
+          if (shouldOutputJSON(options, commandObj)) {
+            outputJSON({
+              success: false,
+              error: 'Task not found'
+            });
+          } else {
+            console.error(chalk.red('✗ Task not found'));
+          }
+          return;
+        }
+
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              command: task.command,
+              status: task.status,
+              priority: task.priority,
+              type: task.type,
+              project: task.project,
+              cwd: task.cwd,
+              processId: task.processId,
+              conflicts: task.conflicts,
+              dependencies: task.dependencies,
+              tags: task.tags,
+              logFile: task.logFile,
+              createdAt: task.createdAt,
+              updatedAt: task.updatedAt,
+              completedAt: task.completedAt,
+              sessionId: task.sessionId
+            }
+          });
+        } else {
+          console.log(chalk.bold(task.title));
+          console.log(`  ID: ${task.id}`);
+          console.log(`  Status: ${task.status}`);
+          console.log(`  Priority: ${task.priority}`);
+          console.log(`  Type: ${task.type}`);
+          if (task.description) console.log(`  Description: ${task.description}`);
+          if (task.command) console.log(`  Command: ${task.command}`);
+          if (task.project) console.log(`  Project: ${task.project}`);
+          if (task.cwd) console.log(`  Working Dir: ${task.cwd}`);
+          if (task.processId) console.log(`  PID: ${task.processId}`);
+          if (task.conflicts && task.conflicts.length > 0) {
+            console.log(`  Conflicts: ${task.conflicts.join(', ')}`);
+          }
+          if (task.dependencies && task.dependencies.length > 0) {
+            console.log(`  Dependencies: ${task.dependencies.join(', ')}`);
+          }
+          if (task.tags && task.tags.length > 0) {
+            console.log(`  Tags: ${task.tags.join(', ')}`);
+          }
+          if (task.logFile) console.log(`  Log File: ${task.logFile}`);
+          console.log(`  Created: ${task.createdAt.toLocaleString()}`);
+          console.log(`  Updated: ${task.updatedAt.toLocaleString()}`);
+          if (task.completedAt) {
+            console.log(`  Completed: ${task.completedAt.toLocaleString()}`);
+          }
+        }
+      } catch (error) {
+        if (shouldOutputJSON(options, commandObj)) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red('✗ Error:'), error);
+        }
+      }
+    });
+
+  program
+    .command('suggest')
+    .description('Get intelligent suggestions for a command')
+    .argument('[command]', 'Command to analyze')
+    .action(async (command) => {
+      try {
+        const suggestions = await taskManager.suggestActions(command);
+
+        if (suggestions.length === 0) {
+          console.log(chalk.green('✓ No issues detected'));
+        } else {
+          console.log(chalk.yellow('💡 Intelligent suggestions:'));
+          suggestions.forEach(suggestion => {
+            console.log(`  • ${suggestion}`);
+          });
+        }
+      } catch (error) {
+        console.error(chalk.red('✗ Error:'), error);
+      }
+    });
+
+  program
+    .command('session-start')
+    .description('Start a new session')
+    .action(() => {
+      const sessionId = taskManager.startSession();
+      console.log(chalk.green('🚀 New session started'));
+      console.log(`  Session ID: ${sessionId}`);
+    });
+
+  program
+    .command('session-end')
+    .description('End current session')
+    .action(() => {
+      taskManager.endSession();
+      console.log(chalk.green('✓ Session ended'));
     });
 
   // Background process management commands (similar to /bashes)
