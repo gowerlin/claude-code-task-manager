@@ -12,9 +12,9 @@ function outputJSON(data: any): void {
   console.log(JSON.stringify(data, null, 2));
 }
 
-// Helper function to check if JSON output is requested
-function isJSONOutput(): boolean {
-  return process.argv.includes('--json');
+// Helper function to check if JSON output is requested from options or parent command
+function shouldOutputJSON(options: any, command?: any): boolean {
+  return options.json || command?.parent?.opts().json || false;
 }
 
 async function main() {
@@ -51,10 +51,7 @@ async function main() {
           options.tags
         );
         
-        // Check both command option and global option
-        const jsonOutput = options.json || command.parent?.opts().json;
-        
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: true,
             task: {
@@ -80,8 +77,7 @@ async function main() {
           console.log(`${t('fields.status')}: ${t(`status.${task.status}`)}`);
         }
       } catch (error) {
-        const jsonOutput = options.json || command.parent?.opts().json;
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -109,9 +105,9 @@ async function main() {
         const tasks = taskManager.listTasks(filter);
         
         // Check both command option and global option
-        const jsonOutput = options.json || command.parent?.opts().json;
+        const jsonOutput = shouldOutputJSON(options, command);
         
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: true,
             tasks: tasks.map(task => ({
@@ -158,8 +154,8 @@ async function main() {
           });
         }
       } catch (error) {
-        const jsonOutput = options.json || command.parent?.opts().json;
-        if (jsonOutput) {
+        const jsonOutput = shouldOutputJSON(options, command);
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -180,10 +176,10 @@ async function main() {
         const task = taskManager.getTask(id);
         
         // Check both command option and global option
-        const jsonOutput = options.json || command.parent?.opts().json;
+        const jsonOutput = shouldOutputJSON(options, command);
         
         if (!task) {
-          if (jsonOutput) {
+          if (shouldOutputJSON(options, command)) {
             outputJSON({
               success: false,
               error: 'Task not found'
@@ -194,7 +190,7 @@ async function main() {
           return;
         }
 
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: true,
             task: {
@@ -231,8 +227,8 @@ async function main() {
           }
         }
       } catch (error) {
-        const jsonOutput = options.json || command.parent?.opts().json;
-        if (jsonOutput) {
+        const jsonOutput = shouldOutputJSON(options, command);
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -263,9 +259,9 @@ async function main() {
         const task = await taskManager.updateTask(id, updates);
         
         // Check both command option and global option
-        const jsonOutput = options.json || command.parent?.opts().json;
+        const jsonOutput = shouldOutputJSON(options, command);
         
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: true,
             task: {
@@ -287,8 +283,8 @@ async function main() {
           console.log(`${t('fields.status')}: ${t(`status.${task.status}`)}`);
         }
       } catch (error) {
-        const jsonOutput = options.json || command.parent?.opts().json;
-        if (jsonOutput) {
+        const jsonOutput = shouldOutputJSON(options, command);
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -309,9 +305,9 @@ async function main() {
         const task = await taskManager.completeTask(id);
         
         // Check both command option and global option
-        const jsonOutput = options.json || command.parent?.opts().json;
+        const jsonOutput = shouldOutputJSON(options, command);
         
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: true,
             task: {
@@ -332,8 +328,8 @@ async function main() {
           console.log(`${t('fields.title')}: ${task.title}`);
         }
       } catch (error) {
-        const jsonOutput = options.json || command.parent?.opts().json;
-        if (jsonOutput) {
+        const jsonOutput = shouldOutputJSON(options, command);
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -354,9 +350,9 @@ async function main() {
         await taskManager.deleteTask(id);
         
         // Check both command option and global option
-        const jsonOutput = options.json || command.parent?.opts().json;
+        const jsonOutput = shouldOutputJSON(options, command);
         
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: true,
             message: 'Task deleted successfully'
@@ -365,8 +361,8 @@ async function main() {
           console.log(chalk.green(t('tasks.deleted')));
         }
       } catch (error) {
-        const jsonOutput = options.json || command.parent?.opts().json;
-        if (jsonOutput) {
+        const jsonOutput = shouldOutputJSON(options, command);
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -424,9 +420,9 @@ async function main() {
         const processes = bgProcessManager.listProcesses(filter);
 
         // Check both command option and global option
-        const jsonOutput = options.json || command.parent?.opts().json;
+        const jsonOutput = shouldOutputJSON(options, command);
 
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           const stats = bgProcessManager.getStatistics();
           outputJSON({
             success: true,
@@ -474,8 +470,8 @@ async function main() {
           console.log(chalk.blue(`Total: ${stats.total} | Running: ${stats.running} | Completed: ${stats.completed} | Failed: ${stats.failed}`));
         }
       } catch (error) {
-        const jsonOutput = options.json || command.parent?.opts().json;
-        if (jsonOutput) {
+        const jsonOutput = shouldOutputJSON(options, command);
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -509,7 +505,7 @@ async function main() {
         // Check both command option and global option
         const jsonOutput = options.json || commandObj.parent?.opts().json;
         
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: true,
             task: {
@@ -535,7 +531,7 @@ async function main() {
         }
       } catch (error) {
         const jsonOutput = options.json || commandObj.parent?.opts().json;
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: false,
             error: error instanceof Error ? error.message : String(error)
@@ -556,9 +552,9 @@ async function main() {
         await taskManager.killBackgroundProcess(id);
         
         // Check both command option and global option
-        const jsonOutput = options.json || command.parent?.opts().json;
+        const jsonOutput = shouldOutputJSON(options, command);
         
-        if (jsonOutput) {
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: true,
             message: 'Background process killed'
@@ -567,8 +563,8 @@ async function main() {
           console.log(chalk.green('Background process killed'));
         }
       } catch (error) {
-        const jsonOutput = options.json || command.parent?.opts().json;
-        if (jsonOutput) {
+        const jsonOutput = shouldOutputJSON(options, command);
+        if (shouldOutputJSON(options, command)) {
           outputJSON({
             success: false,
             error: error instanceof Error ? error.message : String(error)
