@@ -1,0 +1,64 @@
+{
+  "tasks": {
+    "created": "Task created successfully",
+    "updated": "Task updated successfully",
+    "deleted": "Task deleted successfully",
+    "completed": "Task completed successfully",
+    "notFound": "Task not found",
+    "listEmpty": "No tasks found",
+    "listTitle": "Tasks List"
+  },
+  "status": {
+    "pending": "Pending",
+    "in_progress": "In Progress",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "running": "Running",
+    "failed": "Failed"
+  },
+  "priority": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "urgent": "Urgent"
+  },
+  "fields": {
+    "id": "ID",
+    "title": "Title",
+    "description": "Description",
+    "status": "Status",
+    "priority": "Priority",
+    "tags": "Tags",
+    "createdAt": "Created At",
+    "updatedAt": "Updated At",
+    "completedAt": "Completed At",
+    "sessionId": "Session ID",
+    "command": "Command",
+    "processId": "Process ID"
+  },
+  "actions": {
+    "create": "Create Task",
+    "update": "Update Task",
+    "delete": "Delete Task",
+    "complete": "Complete Task",
+    "list": "List Tasks",
+    "show": "Show Task"
+  },
+  "background": {
+    "listTitle": "Background Processes",
+    "listEmpty": "No background processes",
+    "started": "Background process started",
+    "killed": "Background process killed",
+    "notFound": "Background process not found"
+  },
+  "errors": {
+    "invalidInput": "Invalid input provided",
+    "storageError": "Error accessing task storage",
+    "unknownError": "An unknown error occurred"
+  },
+  "messages": {
+    "welcome": "Welcome to Claude Code Task Manager",
+    "sessionInfo": "Current session: {{sessionId}}",
+    "taskCount": "Total tasks: {{count}}"
+  }
+}
