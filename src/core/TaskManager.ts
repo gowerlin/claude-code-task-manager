@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
-import { spawn, exec } from 'child_process';
+import { spawn, exec, ChildProcess } from 'child_process';
 import { Task, TaskStatus, TaskPriority, TaskFilter, TaskManagerConfig, TaskType } from '../types';
 import { t } from '../i18n';
 import { BackgroundProcessManager } from './BackgroundProcessManager';
@@ -13,6 +13,10 @@ const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
 const execAsync = promisify(exec);
 
+// Constants
+const CONFLICT_STOP_DELAY_MS = 1000;
+const FORCE_KILL_DELAY_MS = 5000;
+
 export class TaskManager {
   private tasks: Map<string, Task> = new Map();
   private dataDir: string;
@@ -21,7 +25,8 @@ export class TaskManager {
   private autoSave: boolean;
   private sessionId: string;
   private backgroundProcessManager: BackgroundProcessManager;
-  private runningProcesses: Map<string, any> = new Map(); // Store running process references
+  private runningProcesses: Map<string, ChildProcess> = new Map();
+  private killTimeouts: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(config: TaskManagerConfig = {}) {
     this.dataDir = config.dataDir || path.join(os.homedir(), '.claude-task-manager');
@@ -330,7 +335,7 @@ export class TaskManager {
         if (conflictTask && (conflictTask.status === TaskStatus.RUNNING || conflictTask.status === TaskStatus.IN_PROGRESS)) {
           await this.stopTask(conflictId);
           // Wait a bit for the process to stop
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, CONFLICT_STOP_DELAY_MS));
         }
       }
     }
@@ -352,8 +357,11 @@ export class TaskManager {
       
       // Create log file stream and wait for it to be ready
       const logStream = fs.createWriteStream(logFile, { flags: 'a' });
-      await new Promise((resolve) => {
-        logStream.once('open', resolve);
+      await new Promise<void>((resolve, reject) => {
+        logStream.once('open', () => resolve());
+        logStream.once('error', (err) => reject(err));
+        // Timeout after 5 seconds
+        setTimeout(() => reject(new Error('Log stream timeout')), 5000);
       });
       
       // Spawn the process in detached mode
@@ -385,6 +393,14 @@ export class TaskManager {
             }
             this.tasks.set(id, t);
             this.runningProcesses.delete(id);
+            
+            // Clear any pending kill timeout
+            const killTimeout = this.killTimeouts.get(id);
+            if (killTimeout) {
+              clearTimeout(killTimeout);
+              this.killTimeouts.delete(id);
+            }
+            
             if (this.autoSave) {
               this.saveTasks().catch(console.error);
             }
@@ -437,7 +453,7 @@ export class TaskManager {
         process.kill(task.processId, 'SIGTERM');
         
         // Wait a bit, then force kill if necessary
-        setTimeout(() => {
+        const forceKillTimeout = setTimeout(() => {
           try {
             if (this.runningProcesses.has(id)) {
               process.kill(task.processId!, 'SIGKILL');
@@ -445,11 +461,21 @@ export class TaskManager {
           } catch (err) {
             // Process already killed
           }
-        }, 5000);
+          this.killTimeouts.delete(id);
+        }, FORCE_KILL_DELAY_MS);
+        
+        this.killTimeouts.set(id, forceKillTimeout);
       } catch (error) {
         // Process may already be stopped
       }
       this.runningProcesses.delete(id);
+    }
+
+    // Clear any pending kill timeout
+    const killTimeout = this.killTimeouts.get(id);
+    if (killTimeout) {
+      clearTimeout(killTimeout);
+      this.killTimeouts.delete(id);
     }
 
     task.status = TaskStatus.CANCELLED;
@@ -618,6 +644,7 @@ export class TaskManager {
 
   /**
    * Get task logs
+   * Security: Uses safe file reading to avoid command injection
    */
   async getTaskLogs(id: string, lines: number = 50): Promise<string> {
     const task = this.tasks.get(id);
@@ -632,18 +659,13 @@ export class TaskManager {
     }
 
     try {
-      // Use tail-like functionality
-      const { stdout } = await execAsync(`tail -n ${lines} "${logFile}"`);
-      return stdout;
-    } catch (error) {
-      // Fallback to reading entire file
-      try {
-        const content = await readFile(logFile, 'utf-8');
-        const allLines = content.split('\n');
-        return allLines.slice(-lines).join('\n');
-      } catch (err) {
-        return 'Error reading log file';
-      }
+      // Read the entire file and return last N lines
+      // This is safe from command injection as we're not using shell commands
+      const content = await readFile(logFile, 'utf-8');
+      const allLines = content.split('\n');
+      return allLines.slice(-lines).join('\n');
+    } catch (err) {
+      return 'Error reading log file';
     }
   }
 

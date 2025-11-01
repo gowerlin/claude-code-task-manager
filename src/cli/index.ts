@@ -434,8 +434,8 @@ async function main() {
         const dependencies = options.deps ? options.deps.split(',') : undefined;
 
         const task = await taskManager.createTask(
-          description,
-          description,
+          id,  // Use id as title
+          description,  // Description remains as is
           priority,
           tags,
           type,
