@@ -6,13 +6,20 @@ import { t } from '../i18n';
 /**
  * BackgroundProcessManager - Manages background bash processes
  * This integrates with Claude Code's /bashes concept for managing long-running processes
+ * 
+ * SECURITY NOTE: This manager uses exec() which can be vulnerable to command injection.
+ * In production, consider using execFile() or spawn() with proper argument validation.
+ * Users should only pass trusted commands to this manager.
  */
 export class BackgroundProcessManager {
   private processes: Map<string, BackgroundProcess> = new Map();
   private childProcesses: Map<string, ChildProcess> = new Map();
+  private killTimeouts: Map<string, NodeJS.Timeout> = new Map();
 
   /**
    * Start a background process
+   * WARNING: This uses exec() which can be vulnerable to command injection.
+   * Only pass trusted commands.
    */
   async startProcess(command: string, taskId?: string): Promise<BackgroundProcess> {
     const processId = uuidv4();
@@ -37,6 +44,13 @@ export class BackgroundProcessManager {
           bgProcess.status = 'completed';
           bgProcess.exitCode = 0;
           bgProcess.output = stdout;
+        }
+        
+        // Clear any pending kill timeout
+        const killTimeout = this.killTimeouts.get(processId);
+        if (killTimeout) {
+          clearTimeout(killTimeout);
+          this.killTimeouts.delete(processId);
         }
         
         this.childProcesses.delete(processId);
@@ -89,11 +103,14 @@ export class BackgroundProcessManager {
       childProc.kill('SIGTERM');
       
       // Wait a bit, then force kill if still running
-      setTimeout(() => {
+      const killTimeout = setTimeout(() => {
         if (childProc && !childProc.killed) {
           childProc.kill('SIGKILL');
         }
+        this.killTimeouts.delete(id);
       }, 5000);
+      
+      this.killTimeouts.set(id, killTimeout);
 
       bgProcess.status = 'failed';
       bgProcess.exitCode = -1;

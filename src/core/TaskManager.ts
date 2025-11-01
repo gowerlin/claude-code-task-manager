@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import { Task, TaskStatus, TaskPriority, TaskFilter, TaskManagerConfig, TaskType } from '../types';
@@ -19,7 +20,7 @@ export class TaskManager {
   private backgroundProcessManager: BackgroundProcessManager;
 
   constructor(config: TaskManagerConfig = {}) {
-    this.dataDir = config.dataDir || path.join(process.env.HOME || process.env.USERPROFILE || '.', '.claude-task-manager');
+    this.dataDir = config.dataDir || path.join(os.homedir(), '.claude-task-manager');
     this.dataFile = path.join(this.dataDir, 'tasks.json');
     this.autoSave = config.autoSave !== undefined ? config.autoSave : true;
     this.sessionId = uuidv4();
