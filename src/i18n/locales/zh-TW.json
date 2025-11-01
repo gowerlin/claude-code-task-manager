@@ -1,0 +1,53 @@
+{
+  "tasks": {
+    "created": "任務已成功建立",
+    "updated": "任務已成功更新",
+    "deleted": "任務已成功刪除",
+    "completed": "任務已完成",
+    "notFound": "找不到任務",
+    "listEmpty": "沒有找到任務",
+    "listTitle": "任務清單"
+  },
+  "status": {
+    "pending": "待處理",
+    "in_progress": "進行中",
+    "completed": "已完成",
+    "cancelled": "已取消"
+  },
+  "priority": {
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "urgent": "緊急"
+  },
+  "fields": {
+    "id": "編號",
+    "title": "標題",
+    "description": "描述",
+    "status": "狀態",
+    "priority": "優先級",
+    "tags": "標籤",
+    "createdAt": "建立時間",
+    "updatedAt": "更新時間",
+    "completedAt": "完成時間",
+    "sessionId": "工作階段編號"
+  },
+  "actions": {
+    "create": "建立任務",
+    "update": "更新任務",
+    "delete": "刪除任務",
+    "complete": "完成任務",
+    "list": "列出任務",
+    "show": "顯示任務"
+  },
+  "errors": {
+    "invalidInput": "提供的輸入無效",
+    "storageError": "存取任務儲存時發生錯誤",
+    "unknownError": "發生未知錯誤"
+  },
+  "messages": {
+    "welcome": "歡迎使用 Claude Code 任務管理器",
+    "sessionInfo": "目前工作階段：{{sessionId}}",
+    "taskCount": "任務總數：{{count}}"
+  }
+}
