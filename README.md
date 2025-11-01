@@ -23,8 +23,12 @@ A cross-session intelligent task management system designed for Claude Code and 
 - 📤 **Import/Export**: Backup and restore tasks easily
 - 🖥️ **CLI Interface**: Powerful command-line interface for task management
 - 🔧 **Background Process Management**: Integrated `/bashes`-like functionality for managing background processes (see [issue #7069](https://github.com/anthropics/claude-code/issues/7069))
+- 🔌 **Claude Code Plugin**: Available as a Claude Code CLI plugin for seamless integration
+- 📊 **JSON Output**: Support for structured JSON output for all commands
 
 ### Installation
+
+#### As NPM Package
 
 ```bash
 npm install -g claude-code-task-manager
@@ -35,6 +39,22 @@ Or install locally in your project:
 ```bash
 npm install claude-code-task-manager
 ```
+
+#### As Claude Code Plugin
+
+This package can be used as a Claude Code CLI plugin. Add to your Claude Code plugin configuration:
+
+```json
+{
+  "name": "claude-code-task-manager",
+  "version": "1.0.0",
+  "source": "https://github.com/gowerlin/claude-code-task-manager"
+}
+```
+
+Or install via the Claude Code plugin marketplace (when available).
+
+The plugin provides enhanced command documentation and integration with Claude Code's native features.
 
 ### CLI Usage
 
@@ -88,6 +108,42 @@ cctm export ./tasks-backup.json
 **Import tasks:**
 ```bash
 cctm import ./tasks-backup.json
+```
+
+#### JSON Output
+
+All commands support structured JSON output using the `--json` flag, perfect for scripting and integration:
+
+```bash
+# Create task with JSON output
+cctm create "Build API" -d "REST API implementation" -p high --json
+
+# List tasks in JSON format
+cctm list --status pending --json
+
+# Show task details as JSON
+cctm show <task-id> --json
+
+# Update task and get JSON response
+cctm update <task-id> -s in_progress --json
+```
+
+**Example JSON output:**
+```json
+{
+  "success": true,
+  "task": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "title": "Build API",
+    "description": "REST API implementation",
+    "status": "pending",
+    "priority": "high",
+    "tags": [],
+    "createdAt": "2025-11-01T04:00:00.000Z",
+    "updatedAt": "2025-11-01T04:00:00.000Z",
+    "sessionId": "session-abc123"
+  }
+}
 ```
 
 #### Background Process Management (inspired by `/bashes`)
@@ -242,8 +298,12 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - 📤 **匯入/匯出**：輕鬆備份和還原任務
 - 🖥️ **命令列介面**：強大的命令列介面進行任務管理
 - 🔧 **背景程序管理**：整合類似 `/bashes` 的功能來管理背景程序（參見 [issue #7069](https://github.com/anthropics/claude-code/issues/7069)）
+- 🔌 **Claude Code 插件**：可作為 Claude Code CLI 插件無縫整合
+- 📊 **JSON 輸出**：所有命令均支援結構化 JSON 輸出
 
 ### 安裝
+
+#### 作為 NPM 套件
 
 ```bash
 npm install -g claude-code-task-manager
@@ -254,6 +314,22 @@ npm install -g claude-code-task-manager
 ```bash
 npm install claude-code-task-manager
 ```
+
+#### 作為 Claude Code 插件
+
+此套件可作為 Claude Code CLI 插件使用。新增至您的 Claude Code 插件配置：
+
+```json
+{
+  "name": "claude-code-task-manager",
+  "version": "1.0.0",
+  "source": "https://github.com/gowerlin/claude-code-task-manager"
+}
+```
+
+或透過 Claude Code 插件市集安裝（當可用時）。
+
+該插件提供增強的命令文件和與 Claude Code 原生功能的整合。
 
 ### 命令列使用
 
@@ -307,6 +383,42 @@ cctm export ./tasks-backup.json
 **匯入任務：**
 ```bash
 cctm import ./tasks-backup.json
+```
+
+#### JSON 輸出
+
+所有命令都支援使用 `--json` 標誌的結構化 JSON 輸出，非常適合腳本編寫和整合：
+
+```bash
+# 建立任務並輸出 JSON
+cctm create "開發 API" -d "REST API 實作" -p high --json
+
+# 以 JSON 格式列出任務
+cctm list --status pending --json
+
+# 以 JSON 顯示任務詳情
+cctm show <task-id> --json
+
+# 更新任務並取得 JSON 回應
+cctm update <task-id> -s in_progress --json
+```
+
+**JSON 輸出範例：**
+```json
+{
+  "success": true,
+  "task": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "title": "開發 API",
+    "description": "REST API 實作",
+    "status": "pending",
+    "priority": "high",
+    "tags": [],
+    "createdAt": "2025-11-01T04:00:00.000Z",
+    "updatedAt": "2025-11-01T04:00:00.000Z",
+    "sessionId": "session-abc123"
+  }
+}
 ```
 
 #### 背景程序管理（靈感來自 `/bashes`）
