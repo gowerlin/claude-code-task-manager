@@ -7,6 +7,16 @@ import { initI18n, t, changeLanguage } from '../i18n';
 
 const program = new Command();
 
+// Helper function to output JSON
+function outputJSON(data: any): void {
+  console.log(JSON.stringify(data, null, 2));
+}
+
+// Helper function to check if JSON output is requested
+function isJSONOutput(): boolean {
+  return process.argv.includes('--json');
+}
+
 async function main() {
   // Initialize with English by default, can be changed with --lang option
   const langArg = process.argv.find(arg => arg.startsWith('--lang='));
@@ -20,7 +30,8 @@ async function main() {
     .name('cctm')
     .description(t('messages.welcome'))
     .version('1.0.0')
-    .option('-l, --lang <language>', 'Language (en, zh-TW)', 'en');
+    .option('-l, --lang <language>', 'Language (en, zh-TW)', 'en')
+    .option('--json', 'Output in JSON format');
 
   program
     .command('create')
@@ -29,7 +40,8 @@ async function main() {
     .option('-d, --description <description>', t('fields.description'))
     .option('-p, --priority <priority>', t('fields.priority'), 'medium')
     .option('-t, --tags <tags>', t('fields.tags'), (val) => val.split(','))
-    .action(async (title, options) => {
+    .option('--json', 'Output in JSON format')
+    .action(async (title, options, command) => {
       try {
         const priority = options.priority as TaskPriority;
         const task = await taskManager.createTask(
@@ -38,16 +50,45 @@ async function main() {
           priority,
           options.tags
         );
-        console.log(chalk.green(t('tasks.created')));
-        console.log(chalk.blue(`${t('fields.id')}: ${task.id}`));
-        console.log(`${t('fields.title')}: ${task.title}`);
-        if (task.description) {
-          console.log(`${t('fields.description')}: ${task.description}`);
+        
+        // Check both command option and global option
+        const jsonOutput = options.json || command.parent?.opts().json;
+        
+        if (jsonOutput) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              status: task.status,
+              priority: task.priority,
+              tags: task.tags,
+              createdAt: task.createdAt,
+              updatedAt: task.updatedAt,
+              sessionId: task.sessionId
+            }
+          });
+        } else {
+          console.log(chalk.green(t('tasks.created')));
+          console.log(chalk.blue(`${t('fields.id')}: ${task.id}`));
+          console.log(`${t('fields.title')}: ${task.title}`);
+          if (task.description) {
+            console.log(`${t('fields.description')}: ${task.description}`);
+          }
+          console.log(`${t('fields.priority')}: ${t(`priority.${task.priority}`)}`);
+          console.log(`${t('fields.status')}: ${t(`status.${task.status}`)}`);
         }
-        console.log(`${t('fields.priority')}: ${t(`priority.${task.priority}`)}`);
-        console.log(`${t('fields.status')}: ${t(`status.${task.status}`)}`);
       } catch (error) {
-        console.error(chalk.red(t('errors.unknownError')), error);
+        const jsonOutput = options.json || command.parent?.opts().json;
+        if (jsonOutput) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red(t('errors.unknownError')), error);
+        }
       }
     });
 
@@ -57,7 +98,8 @@ async function main() {
     .option('-s, --status <status>', t('fields.status'))
     .option('-p, --priority <priority>', t('fields.priority'))
     .option('--session', 'Show only current session tasks')
-    .action(async (options) => {
+    .option('--json', 'Output in JSON format')
+    .action(async (options, command) => {
       try {
         const filter: any = {};
         if (options.status) filter.status = options.status;
@@ -66,35 +108,65 @@ async function main() {
 
         const tasks = taskManager.listTasks(filter);
         
-        if (tasks.length === 0) {
-          console.log(chalk.yellow(t('tasks.listEmpty')));
-          return;
-        }
-
-        console.log(chalk.bold(t('tasks.listTitle')));
-        console.log(chalk.blue(t('messages.taskCount', { count: tasks.length })));
-        console.log();
-
-        tasks.forEach(task => {
-          const statusColor = task.status === TaskStatus.COMPLETED ? chalk.green :
-                             task.status === TaskStatus.IN_PROGRESS ? chalk.blue :
-                             task.status === TaskStatus.CANCELLED ? chalk.red :
-                             chalk.yellow;
-
-          console.log(chalk.bold(`[${task.id.substring(0, 8)}]`) + ` ${task.title}`);
-          console.log(`  ${t('fields.status')}: ${statusColor(t(`status.${task.status}`))}`);
-          console.log(`  ${t('fields.priority')}: ${t(`priority.${task.priority}`)}`);
-          if (task.description) {
-            console.log(`  ${t('fields.description')}: ${task.description}`);
+        // Check both command option and global option
+        const jsonOutput = options.json || command.parent?.opts().json;
+        
+        if (jsonOutput) {
+          outputJSON({
+            success: true,
+            tasks: tasks.map(task => ({
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              status: task.status,
+              priority: task.priority,
+              tags: task.tags,
+              createdAt: task.createdAt,
+              updatedAt: task.updatedAt,
+              completedAt: task.completedAt,
+              sessionId: task.sessionId
+            })),
+            count: tasks.length
+          });
+        } else {
+          if (tasks.length === 0) {
+            console.log(chalk.yellow(t('tasks.listEmpty')));
+            return;
           }
-          if (task.tags && task.tags.length > 0) {
-            console.log(`  ${t('fields.tags')}: ${task.tags.join(', ')}`);
-          }
-          console.log(`  ${t('fields.createdAt')}: ${task.createdAt.toLocaleString()}`);
+
+          console.log(chalk.bold(t('tasks.listTitle')));
+          console.log(chalk.blue(t('messages.taskCount', { count: tasks.length })));
           console.log();
-        });
+
+          tasks.forEach(task => {
+            const statusColor = task.status === TaskStatus.COMPLETED ? chalk.green :
+                               task.status === TaskStatus.IN_PROGRESS ? chalk.blue :
+                               task.status === TaskStatus.CANCELLED ? chalk.red :
+                               chalk.yellow;
+
+            console.log(chalk.bold(`[${task.id.substring(0, 8)}]`) + ` ${task.title}`);
+            console.log(`  ${t('fields.status')}: ${statusColor(t(`status.${task.status}`))}`);
+            console.log(`  ${t('fields.priority')}: ${t(`priority.${task.priority}`)}`);
+            if (task.description) {
+              console.log(`  ${t('fields.description')}: ${task.description}`);
+            }
+            if (task.tags && task.tags.length > 0) {
+              console.log(`  ${t('fields.tags')}: ${task.tags.join(', ')}`);
+            }
+            console.log(`  ${t('fields.createdAt')}: ${task.createdAt.toLocaleString()}`);
+            console.log();
+          });
+        }
       } catch (error) {
-        console.error(chalk.red(t('errors.unknownError')), error);
+        const jsonOutput = options.json || command.parent?.opts().json;
+        if (jsonOutput) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red(t('errors.unknownError')), error);
+        }
       }
     });
 
@@ -102,34 +174,72 @@ async function main() {
     .command('show')
     .description(t('actions.show'))
     .argument('<id>', t('fields.id'))
-    .action(async (id) => {
+    .option('--json', 'Output in JSON format')
+    .action(async (id, options, command) => {
       try {
         const task = taskManager.getTask(id);
+        
+        // Check both command option and global option
+        const jsonOutput = options.json || command.parent?.opts().json;
+        
         if (!task) {
-          console.error(chalk.red(t('tasks.notFound')));
+          if (jsonOutput) {
+            outputJSON({
+              success: false,
+              error: 'Task not found'
+            });
+          } else {
+            console.error(chalk.red(t('tasks.notFound')));
+          }
           return;
         }
 
-        console.log(chalk.bold(task.title));
-        console.log(`${t('fields.id')}: ${task.id}`);
-        console.log(`${t('fields.status')}: ${t(`status.${task.status}`)}`);
-        console.log(`${t('fields.priority')}: ${t(`priority.${task.priority}`)}`);
-        if (task.description) {
-          console.log(`${t('fields.description')}: ${task.description}`);
-        }
-        if (task.tags && task.tags.length > 0) {
-          console.log(`${t('fields.tags')}: ${task.tags.join(', ')}`);
-        }
-        console.log(`${t('fields.createdAt')}: ${task.createdAt.toLocaleString()}`);
-        console.log(`${t('fields.updatedAt')}: ${task.updatedAt.toLocaleString()}`);
-        if (task.completedAt) {
-          console.log(`${t('fields.completedAt')}: ${task.completedAt.toLocaleString()}`);
-        }
-        if (task.sessionId) {
-          console.log(`${t('fields.sessionId')}: ${task.sessionId}`);
+        if (jsonOutput) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              status: task.status,
+              priority: task.priority,
+              tags: task.tags,
+              createdAt: task.createdAt,
+              updatedAt: task.updatedAt,
+              completedAt: task.completedAt,
+              sessionId: task.sessionId
+            }
+          });
+        } else {
+          console.log(chalk.bold(task.title));
+          console.log(`${t('fields.id')}: ${task.id}`);
+          console.log(`${t('fields.status')}: ${t(`status.${task.status}`)}`);
+          console.log(`${t('fields.priority')}: ${t(`priority.${task.priority}`)}`);
+          if (task.description) {
+            console.log(`${t('fields.description')}: ${task.description}`);
+          }
+          if (task.tags && task.tags.length > 0) {
+            console.log(`${t('fields.tags')}: ${task.tags.join(', ')}`);
+          }
+          console.log(`${t('fields.createdAt')}: ${task.createdAt.toLocaleString()}`);
+          console.log(`${t('fields.updatedAt')}: ${task.updatedAt.toLocaleString()}`);
+          if (task.completedAt) {
+            console.log(`${t('fields.completedAt')}: ${task.completedAt.toLocaleString()}`);
+          }
+          if (task.sessionId) {
+            console.log(`${t('fields.sessionId')}: ${task.sessionId}`);
+          }
         }
       } catch (error) {
-        console.error(chalk.red(t('errors.unknownError')), error);
+        const jsonOutput = options.json || command.parent?.opts().json;
+        if (jsonOutput) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red(t('errors.unknownError')), error);
+        }
       }
     });
 
@@ -141,7 +251,8 @@ async function main() {
     .option('-d, --description <description>', t('fields.description'))
     .option('-s, --status <status>', t('fields.status'))
     .option('-p, --priority <priority>', t('fields.priority'))
-    .action(async (id, options) => {
+    .option('--json', 'Output in JSON format')
+    .action(async (id, options, command) => {
       try {
         const updates: any = {};
         if (options.title) updates.title = options.title;
@@ -150,11 +261,41 @@ async function main() {
         if (options.priority) updates.priority = options.priority;
 
         const task = await taskManager.updateTask(id, updates);
-        console.log(chalk.green(t('tasks.updated')));
-        console.log(`${t('fields.title')}: ${task.title}`);
-        console.log(`${t('fields.status')}: ${t(`status.${task.status}`)}`);
+        
+        // Check both command option and global option
+        const jsonOutput = options.json || command.parent?.opts().json;
+        
+        if (jsonOutput) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              status: task.status,
+              priority: task.priority,
+              tags: task.tags,
+              createdAt: task.createdAt,
+              updatedAt: task.updatedAt,
+              completedAt: task.completedAt,
+              sessionId: task.sessionId
+            }
+          });
+        } else {
+          console.log(chalk.green(t('tasks.updated')));
+          console.log(`${t('fields.title')}: ${task.title}`);
+          console.log(`${t('fields.status')}: ${t(`status.${task.status}`)}`);
+        }
       } catch (error) {
-        console.error(chalk.red(t('errors.unknownError')), error);
+        const jsonOutput = options.json || command.parent?.opts().json;
+        if (jsonOutput) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red(t('errors.unknownError')), error);
+        }
       }
     });
 
@@ -162,13 +303,44 @@ async function main() {
     .command('complete')
     .description(t('actions.complete'))
     .argument('<id>', t('fields.id'))
-    .action(async (id) => {
+    .option('--json', 'Output in JSON format')
+    .action(async (id, options, command) => {
       try {
         const task = await taskManager.completeTask(id);
-        console.log(chalk.green(t('tasks.completed')));
-        console.log(`${t('fields.title')}: ${task.title}`);
+        
+        // Check both command option and global option
+        const jsonOutput = options.json || command.parent?.opts().json;
+        
+        if (jsonOutput) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              status: task.status,
+              priority: task.priority,
+              tags: task.tags,
+              createdAt: task.createdAt,
+              updatedAt: task.updatedAt,
+              completedAt: task.completedAt,
+              sessionId: task.sessionId
+            }
+          });
+        } else {
+          console.log(chalk.green(t('tasks.completed')));
+          console.log(`${t('fields.title')}: ${task.title}`);
+        }
       } catch (error) {
-        console.error(chalk.red(t('errors.unknownError')), error);
+        const jsonOutput = options.json || command.parent?.opts().json;
+        if (jsonOutput) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red(t('errors.unknownError')), error);
+        }
       }
     });
 
@@ -176,12 +348,32 @@ async function main() {
     .command('delete')
     .description(t('actions.delete'))
     .argument('<id>', t('fields.id'))
-    .action(async (id) => {
+    .option('--json', 'Output in JSON format')
+    .action(async (id, options, command) => {
       try {
         await taskManager.deleteTask(id);
-        console.log(chalk.green(t('tasks.deleted')));
+        
+        // Check both command option and global option
+        const jsonOutput = options.json || command.parent?.opts().json;
+        
+        if (jsonOutput) {
+          outputJSON({
+            success: true,
+            message: 'Task deleted successfully'
+          });
+        } else {
+          console.log(chalk.green(t('tasks.deleted')));
+        }
       } catch (error) {
-        console.error(chalk.red(t('errors.unknownError')), error);
+        const jsonOutput = options.json || command.parent?.opts().json;
+        if (jsonOutput) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red(t('errors.unknownError')), error);
+        }
       }
     });
 
@@ -224,39 +416,73 @@ async function main() {
     .alias('background')
     .description('List and manage background processes')
     .option('--running', 'Show only running processes')
-    .action(async (options) => {
+    .option('--json', 'Output in JSON format')
+    .action(async (options, command) => {
       try {
         const bgProcessManager = taskManager.getBackgroundProcessManager();
         const filter = options.running ? { status: 'running' as const } : undefined;
         const processes = bgProcessManager.listProcesses(filter);
 
-        if (processes.length === 0) {
-          console.log(chalk.yellow('No background processes found'));
-          return;
-        }
+        // Check both command option and global option
+        const jsonOutput = options.json || command.parent?.opts().json;
 
-        console.log(chalk.bold('Background Processes'));
-        console.log();
-
-        processes.forEach(proc => {
-          const statusColor = proc.status === 'running' ? chalk.blue :
-                             proc.status === 'completed' ? chalk.green :
-                             chalk.red;
-
-          console.log(chalk.bold(`[${proc.id.substring(0, 8)}]`) + ` PID: ${proc.processId}`);
-          console.log(`  Status: ${statusColor(proc.status)}`);
-          console.log(`  Command: ${proc.command}`);
-          console.log(`  Started: ${proc.startedAt.toLocaleString()}`);
-          if (proc.exitCode !== undefined) {
-            console.log(`  Exit Code: ${proc.exitCode}`);
+        if (jsonOutput) {
+          const stats = bgProcessManager.getStatistics();
+          outputJSON({
+            success: true,
+            processes: processes.map(proc => ({
+              id: proc.id,
+              taskId: proc.taskId,
+              processId: proc.processId,
+              command: proc.command,
+              status: proc.status,
+              exitCode: proc.exitCode,
+              startedAt: proc.startedAt
+            })),
+            statistics: {
+              total: stats.total,
+              running: stats.running,
+              completed: stats.completed,
+              failed: stats.failed
+            }
+          });
+        } else {
+          if (processes.length === 0) {
+            console.log(chalk.yellow('No background processes found'));
+            return;
           }
-          console.log();
-        });
 
-        const stats = bgProcessManager.getStatistics();
-        console.log(chalk.blue(`Total: ${stats.total} | Running: ${stats.running} | Completed: ${stats.completed} | Failed: ${stats.failed}`));
+          console.log(chalk.bold('Background Processes'));
+          console.log();
+
+          processes.forEach(proc => {
+            const statusColor = proc.status === 'running' ? chalk.blue :
+                               proc.status === 'completed' ? chalk.green :
+                               chalk.red;
+
+            console.log(chalk.bold(`[${proc.id.substring(0, 8)}]`) + ` PID: ${proc.processId}`);
+            console.log(`  Status: ${statusColor(proc.status)}`);
+            console.log(`  Command: ${proc.command}`);
+            console.log(`  Started: ${proc.startedAt.toLocaleString()}`);
+            if (proc.exitCode !== undefined) {
+              console.log(`  Exit Code: ${proc.exitCode}`);
+            }
+            console.log();
+          });
+
+          const stats = bgProcessManager.getStatistics();
+          console.log(chalk.blue(`Total: ${stats.total} | Running: ${stats.running} | Completed: ${stats.completed} | Failed: ${stats.failed}`));
+        }
       } catch (error) {
-        console.error(chalk.red(t('errors.unknownError')), error);
+        const jsonOutput = options.json || command.parent?.opts().json;
+        if (jsonOutput) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red(t('errors.unknownError')), error);
+        }
       }
     });
 
@@ -268,7 +494,8 @@ async function main() {
     .option('-d, --description <description>', 'Task description')
     .option('-p, --priority <priority>', 'Priority level', 'medium')
     .option('-t, --tags <tags>', 'Tags (comma-separated)', (val) => val.split(','))
-    .action(async (title, command, options) => {
+    .option('--json', 'Output in JSON format')
+    .action(async (title, command, options, commandObj) => {
       try {
         const priority = options.priority as TaskPriority;
         const task = await taskManager.createBackgroundTask(
@@ -278,14 +505,44 @@ async function main() {
           priority,
           options.tags
         );
-        console.log(chalk.green('Background task created and started'));
-        console.log(chalk.blue(`Task ID: ${task.id}`));
-        console.log(`Title: ${task.title}`);
-        console.log(`Command: ${task.command}`);
-        console.log(`PID: ${task.processId}`);
-        console.log(`Status: ${t(`status.${task.status}`)}`);
+        
+        // Check both command option and global option
+        const jsonOutput = options.json || commandObj.parent?.opts().json;
+        
+        if (jsonOutput) {
+          outputJSON({
+            success: true,
+            task: {
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              command: task.command,
+              processId: task.processId,
+              status: task.status,
+              priority: task.priority,
+              tags: task.tags,
+              createdAt: task.createdAt,
+              sessionId: task.sessionId
+            }
+          });
+        } else {
+          console.log(chalk.green('Background task created and started'));
+          console.log(chalk.blue(`Task ID: ${task.id}`));
+          console.log(`Title: ${task.title}`);
+          console.log(`Command: ${task.command}`);
+          console.log(`PID: ${task.processId}`);
+          console.log(`Status: ${t(`status.${task.status}`)}`);
+        }
       } catch (error) {
-        console.error(chalk.red(t('errors.unknownError')), error);
+        const jsonOutput = options.json || commandObj.parent?.opts().json;
+        if (jsonOutput) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red(t('errors.unknownError')), error);
+        }
       }
     });
 
@@ -293,12 +550,32 @@ async function main() {
     .command('bg-kill')
     .description('Kill a background process')
     .argument('<id>', 'Task ID or process ID')
-    .action(async (id) => {
+    .option('--json', 'Output in JSON format')
+    .action(async (id, options, command) => {
       try {
         await taskManager.killBackgroundProcess(id);
-        console.log(chalk.green('Background process killed'));
+        
+        // Check both command option and global option
+        const jsonOutput = options.json || command.parent?.opts().json;
+        
+        if (jsonOutput) {
+          outputJSON({
+            success: true,
+            message: 'Background process killed'
+          });
+        } else {
+          console.log(chalk.green('Background process killed'));
+        }
       } catch (error) {
-        console.error(chalk.red(t('errors.unknownError')), error);
+        const jsonOutput = options.json || command.parent?.opts().json;
+        if (jsonOutput) {
+          outputJSON({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error(chalk.red(t('errors.unknownError')), error);
+        }
       }
     });
 
